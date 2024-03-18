@@ -36,14 +36,10 @@ class Word{
     this.font = "bold " + (this.height * 0.7) + "px " + DEFAULT_FONT_NAME;
   }
   getWidth(){
-    return this.width;
+    return this.width + this.border;
   }
   getHeight(){
     return this.height;
-  }
-  draw(ctx){
-    this.drawBorder(ctx);
-    this.drawWord(ctx);
   }
   drawBorder(ctx){
     ctx.save()
@@ -51,17 +47,23 @@ class Word{
     let half_w = this.width / 2;
     let half_h = this.height / 2;
     ctx.fillRect(-half_w, -half_h, this.width, this.height);
+    ctx.restore()
+  }
+  drawContainer(ctx){
+    ctx.save()
     ctx.fillStyle = "black";
+    let half_w = this.width / 2;
+    let half_h = this.height / 2;
     ctx.fillRect(
       -half_w + this.border, -half_h + this.border, 
       this.width - 2 * this.border, this.height - 2 * this.border
     );
-    if(this.isfirstword){
-      this.drawFirstWordBorder(ctx)
-    }
     ctx.restore()
+    if (this.isfirstword){
+      this.drawFirstWordContainer(ctx);
+    }
   }
-  drawFirstWordBorder(ctx){
+  drawFirstWordContainer(ctx){
     let half_w = this.width / 2;
     let half_h = this.height / 2;
     ctx.save()
@@ -96,7 +98,7 @@ class LineText{
     this.words = this.words.map((word, index) => new Word(word, index === 0));
   }
   getWidth(){
-    return this.words.reduce((acc, word) => acc + word.getWidth(), 0) + (this.words.length - 1);
+    return this.words.reduce((acc, word) => acc + word.getWidth(), 0)// + (this.words.length - 1);
   }
   getHeight(){
     return this.words.reduce((acc, word) => Math.max(acc, word.getHeight()), 0);
@@ -104,15 +106,32 @@ class LineText{
   draw(ctx){
     let all_width = this.getWidth();
     let left = -all_width / 2;
-    for(let i = 0; i < this.words.length; i++){
-      let word = this.words[i];
-      left += word.getWidth() + 1;
-      ctx.save()
-      ctx.translate(left, 0);
-      ctx.rotate((Math.random() - 0.5) * 0.3);
-      word.draw(ctx);
-      ctx.restore();
+
+    let lefts = this.words.map((word) => word.getWidth());
+    lefts = lefts.map((width, index) => lefts.slice(0, index).reduce((acc, w) => acc + w, 0));
+
+    let rotates = this.words.map((word) => (Math.random() - 0.5) * 0.3);
+
+    let wordmap = (fn, is_reverse)=>{
+      let actions = (i) => {
+        let word = this.words[i];
+        ctx.save()
+        ctx.translate(left + lefts[i], 0);
+        ctx.rotate(rotates[i]);
+        fn(word, i);
+        ctx.restore();
+      }
+      if(!is_reverse){
+        for(let i=0; i<this.words.length; i++) actions(i);
+      }else{
+        for(let i=this.words.length-1; i>=0; i--) actions(i);
+      }
     }
+    wordmap((word, i)=>{
+      word.drawBorder(ctx);
+      word.drawContainer(ctx);
+      word.drawWord(ctx);
+    }, false);
   }
 }
 
@@ -122,6 +141,12 @@ class Content{
     this.lines = content.split('\n');
     this.lines = this.lines.filter((line) => line.trim() !== '');
     this.lines = this.lines.map((line) => new LineText(line));
+  }
+  getWidth(){
+    return this.lines.reduce((acc, line) => Math.max(acc, line.getWidth()), 0);
+  }
+  getHeight(){
+    return this.lines.reduce((acc, line) => acc + line.getHeight() * 1.2, 0);
   }
   draw(ctx){
     let all_height = this.lines.reduce((acc, line) => acc + line.getHeight(), 0);
@@ -145,10 +170,12 @@ function drawBackground(canvas){
   let maxRadius = Math.max(canvas.width, canvas.height);
   let commonDifference = maxRadius / circlesCount;
   let offset = () => Math.random() * commonDifference * 0.53;
-  for (let i = circlesCount; i > 0; i--) {
+  for (let i = parseInt(circlesCount); i > 0; i--) {
       let radius = maxRadius - (circlesCount - i) * commonDifference;
+      let x = canvas.width / 2 + offset();
+      let y = canvas.height / 2 + offset();
       ctx.beginPath();
-      ctx.arc(canvas.width / 2 + offset(), canvas.height / 2 + offset(), radius, 0, Math.PI * 2);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.closePath();
       ctx.fillStyle = i % 2 === 1 ? '#ff3333': "#111";
       ctx.fill();
@@ -156,6 +183,11 @@ function drawBackground(canvas){
 }
 
 function draw(canvas, content){
+  let content_obj = new Content(content)
+  let width = content_obj.getWidth() * 1.2;
+  let height = content_obj.getHeight() * 1.2;
+  canvas.width = Math.max(500, parseInt(width));
+  canvas.height = Math.max(500, parseInt(height));
   let ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = true;
@@ -163,7 +195,7 @@ function draw(canvas, content){
 
   ctx.save()
   ctx.translate(canvas.width / 2, canvas.height / 2);
-  new Content(content).draw(ctx);
+  content_obj.draw(ctx);
   ctx.restore()
 }
 
