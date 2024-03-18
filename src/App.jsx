@@ -1,10 +1,18 @@
-import logo from './logo.svg';
 import './App.css';
 import { useState } from 'react';
 import PersonaCanvas from './components/PersonaCanvas';
 
+
+const DEFAULT_TEXT = `你好世界!
+Tech
+Otaku
+Save
+The
+World`
+
+
 function App() {
-  let [inputContent, setInputContent] = useState('')
+  let [inputContent, setInputContent] = useState(DEFAULT_TEXT);
 
   let TextInputEvent = (e) => {
     setInputContent(e.target.value) 
@@ -12,7 +20,7 @@ function App() {
 
   return (
     <div className="App">
-      <textarea name="" id="" cols="30" rows="10" onChange={(e)=>TextInputEvent(e)} ></textarea>
+      <textarea rows="10" cols="50" value={inputContent} onChange={(e)=>TextInputEvent(e)} ></textarea>
       <PersonaCanvas content={inputContent} />
     </div>
   );

@@ -1,18 +1,18 @@
-import './PersonaCanvas.css';
 import { useEffect } from 'react';
 
 
 function getWordWidth(word){
-  const HALF_WIDTH = 30;
-  const WIDTH = 50;
-  const SPECIAL_SYMBOL = "‘’\“\”】」：；，。》/？！¥）·、｜";
+  const SPECIAL_SYMBOL = "‘’“”】」：；，。》/？！¥）·、｜";
 
-  let base_size = WIDTH;
-  if(word.charCodeAt(0) <= 255 || SPECIAL_SYMBOL.indexOf(word) !== -1){
-    base_size = HALF_WIDTH;
+  let code_at = word.charCodeAt(0);
+  if(SPECIAL_SYMBOL.indexOf(word) !== -1){
+    return 30;
+  }else if(code_at >= 'A'.charCodeAt(0) && code_at <= 'Z'.charCodeAt(0)){
+    return 40;
+  }else if(code_at <= 255){
+    return 33;
   }
-
-  return base_size;
+  return 50;
 }
 
 function getWordHeight(word){
@@ -105,7 +105,7 @@ class LineText{
   }
   draw(ctx){
     let all_width = this.getWidth();
-    let left = -all_width / 2;
+    let left = -all_width / 2 + this.words[0].getWidth() / 2;
 
     let lefts = this.words.map((word) => word.getWidth());
     lefts = lefts.map((width, index) => lefts.slice(0, index).reduce((acc, w) => acc + w, 0));
