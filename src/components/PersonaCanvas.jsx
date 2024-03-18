@@ -2,25 +2,149 @@ import './PersonaCanvas.css';
 import { useEffect } from 'react';
 
 
-const LINE_HEIGHT = 50;
-const V_MARGIN = 10;
-const WORD_SIZE = 50;
+function getWordWidth(word){
+  const HALF_WIDTH = 30;
+  const WIDTH = 50;
+  const SPECIAL_SYMBOL = "‘’\“\”】」：；，。》/？！¥）·、｜";
 
+  let base_size = WIDTH;
+  if(word.charCodeAt(0) <= 255 || SPECIAL_SYMBOL.indexOf(word) !== -1){
+    base_size = HALF_WIDTH;
+  }
 
-/**
- * 文字容器 黑底白色边框
- * 1. 首字：叠加一个红色方框，随机略微倾斜但不超出容器，白色文字
- * 2. 小概率字：红色字
- * 3. 大概率字：白色字
- */
+  return base_size;
+}
+
+function getWordHeight(word){
+  return getWordWidth("字");
+}
+
+const RANDOM_WITH_RANGE = 20;
+const DEFAULT_FONT_NAME = "sans-serif";
+
+class Word{
+  constructor(word, isfirstword){
+    this.word = word;
+    this.isfirstword = isfirstword;
+
+    this.randomWidth = Math.random() * RANDOM_WITH_RANGE - RANDOM_WITH_RANGE/2;
+    if(isfirstword){this.randomWidth = Math.abs(this.randomWidth) * 1.5;}
+
+    this.width = getWordWidth(word) + this.randomWidth;
+    this.height = getWordHeight(word) + this.randomWidth;
+    this.border = this.height * 0.05;
+    this.font = "bold " + (this.height * 0.7) + "px " + DEFAULT_FONT_NAME;
+  }
+  getWidth(){
+    return this.width;
+  }
+  getHeight(){
+    return this.height;
+  }
+  draw(ctx){
+    this.drawBorder(ctx);
+    this.drawWord(ctx);
+  }
+  drawBorder(ctx){
+    ctx.save()
+    ctx.fillStyle = "white";
+    let half_w = this.width / 2;
+    let half_h = this.height / 2;
+    ctx.fillRect(-half_w, -half_h, this.width, this.height);
+    ctx.fillStyle = "black";
+    ctx.fillRect(
+      -half_w + this.border, -half_h + this.border, 
+      this.width - 2 * this.border, this.height - 2 * this.border
+    );
+    if(this.isfirstword){
+      this.drawFirstWordBorder(ctx)
+    }
+    ctx.restore()
+  }
+  drawFirstWordBorder(ctx){
+    let half_w = this.width / 2;
+    let half_h = this.height / 2;
+    ctx.save()
+    ctx.rotate((Math.random() - 0.5) * 0.1);
+    ctx.fillStyle = "red";
+    let left = -half_w + this.border * 2;
+    let top = -half_h + this.border * 2;
+    let _width = this.width - 4 * this.border;
+    let _height = this.height - 4 * this.border;
+    ctx.fillRect(left, top, _width, _height)
+    ctx.restore()
+  }
+  drawWord(ctx){
+    ctx.save()
+    ctx.font = this.font;
+
+    ctx.fillStyle = "white";
+    if(!this.isfirstword && Math.random() < 0.15){
+      ctx.fillStyle = "red";
+    }
+
+    ctx.translate(-this.width / 2 + this.border * 3, this.border * 5)
+    ctx.fillText(this.word, 0, 0);
+    ctx.restore()
+  }
+}
+
+class LineText{
+  constructor(content){
+    this.content = content;
+    this.words = content.split('');
+    this.words = this.words.map((word, index) => new Word(word, index === 0));
+  }
+  getWidth(){
+    return this.words.reduce((acc, word) => acc + word.getWidth(), 0) + (this.words.length - 1);
+  }
+  getHeight(){
+    return this.words.reduce((acc, word) => Math.max(acc, word.getHeight()), 0);
+  }
+  draw(ctx){
+    let all_width = this.getWidth();
+    let left = -all_width / 2;
+    for(let i = 0; i < this.words.length; i++){
+      let word = this.words[i];
+      left += word.getWidth() + 1;
+      ctx.save()
+      ctx.translate(left, 0);
+      ctx.rotate((Math.random() - 0.5) * 0.3);
+      word.draw(ctx);
+      ctx.restore();
+    }
+  }
+}
+
+class Content{
+  constructor(content){
+    this.content = content;
+    this.lines = content.split('\n');
+    this.lines = this.lines.filter((line) => line.trim() !== '');
+    this.lines = this.lines.map((line) => new LineText(line));
+  }
+  draw(ctx){
+    let all_height = this.lines.reduce((acc, line) => acc + line.getHeight(), 0);
+    let top = -all_height / 2;
+    for(let i = 0; i < this.lines.length; i++){
+      ctx.save()
+      ctx.translate(0, top);
+      let line = this.lines[i];
+      line.draw(ctx);
+      ctx.restore();
+      top += line.getHeight() * 1.2;
+    }
+  }
+
+}
 
 function drawBackground(canvas){
   // 背景由一堆同心圆组成，圆心在canvas中心，每个圆的半径为等差数列，从最大半径开始，每个圆的背景颜色有红黑交替
   let ctx = canvas.getContext('2d');
-  let circlesCount = 9;
-  let maxRadius = Math.min(canvas.width, canvas.height);
+  let circlesCount = canvas.width / getWordWidth("字");
+  let maxRadius = Math.max(canvas.width, canvas.height);
   let commonDifference = maxRadius / circlesCount;
-  let offset = () => Math.random() * commonDifference * 0.5
+  let offset = () => Math.random() * commonDifference * 0.53;
   for (let i = circlesCount; i > 0; i--) {
       let radius = maxRadius - (circlesCount - i) * commonDifference;
       ctx.beginPath();
@@ -31,60 +155,6 @@ function drawBackground(canvas){
   }
 }
 
-
-function drawWord(ctx, word, isfirstword){
-  ctx.font = "30px Arial";
-
-  ctx.fillStyle = "black";
-  ctx.fillRect(10, 10, 50, 50)
-
-  if (isfirstword){
-    ctx.fillStyle = "red";
-    ctx.fillRect(13, 13, 44, 44)
-  }
-
-  ctx.strokeStyle = "white";
-  ctx.strokeRect(10, 10, 50, 50);
-
-  ctx.fillStyle = "white";
-  // 判断word是全角字符还是半角字符
-  ctx.save()
-  if(word.charCodeAt(0) > 255){
-    ctx.translate(10, -5)
-  }else{
-    ctx.translate(15, -5)
-  }
-  ctx.fillText(word, 10, 50);
-  ctx.restore()
-}
-
-function drawLine(ctx, content){
-  let words = content.trim().split('');
-  let all_width = WORD_SIZE * words.length;
-  let left = -all_width / 2;
-
-  for(let i = 0; i < words.length; i++){
-    ctx.save()
-    ctx.translate(left + i * WORD_SIZE, 0);
-    ctx.rotate((Math.random() - 0.5) * 0.25);
-    drawWord(ctx, content[i], i==0);
-    ctx.restore()
-  }
-}
-
-function drawContent(ctx, content){
-  let lst = content.split('\n');
-  lst = lst.filter((line) => line.trim() !== '')
-  let top = -(LINE_HEIGHT + V_MARGIN) * (lst.length / 2 + 1);
-  for(let line of lst){
-    top += LINE_HEIGHT + V_MARGIN;
-    ctx.save()
-    ctx.translate(0, top);
-    drawLine(ctx, line);
-    ctx.restore()
-  };
-}
-
 function draw(canvas, content){
   let ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -93,7 +163,7 @@ function draw(canvas, content){
 
   ctx.save()
   ctx.translate(canvas.width / 2, canvas.height / 2);
-  drawContent(ctx, content);
+  new Content(content).draw(ctx);
   ctx.restore()
 }
 
@@ -105,7 +175,7 @@ function PersonaCanvas({ content }) {
 
   return (
     <div className="App">
-      <canvas id="drawpanel" width="800px" height="500px"/>
+      <canvas id="drawpanel" width="1200px" height="800px"/>
     </div>
   );
 }
